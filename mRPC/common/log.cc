@@ -4,7 +4,6 @@
 
 #include "mRPC/common/log.h"
 #include "mRPC/common/util.h"
-#include "log.h"
 
 namespace mrpc
 {
@@ -16,15 +15,18 @@ std::string LogLevelToString(LogLevel level)
     switch (level) 
     {
     case LogLevel::kDebug:
-        return "DEBUG";
+        return "Debug";
     case LogLevel::kInfo:
-        return "INFO";
+        return "Info";
     case LogLevel::kError:
         return "Error";
+    case LogLevel::kAny:
+        return "Any";
     default:
-        return "UNKNOWN";
+        return "Unknown";
     }
 }
+
 /* as you can see */
 LogLevel StringToLogLevel(const std::string& log_level) 
 {
@@ -40,11 +42,22 @@ LogLevel StringToLogLevel(const std::string& log_level)
     {
         return LogLevel::kError;
     } 
-    else {
+    else if (log_level == "ANY")
+    {
+        return LogLevel::kAny;
+    }
+    else 
+    {
         return LogLevel::kUnknown;
     }
 }
 
+/**
+ * @brief 返回对应日志等级的字符串前缀信息
+ * @return std::string 
+ * 
+ * @details 返回值是该等级的日志字符串前缀信息,格式为 [LogLevel][Year-Month-Day Hour:Minute:Second.MillionSecond]
+ */
 std::string LogEvent::toString()
 {
     struct timeval now_time = { 0 };                /* 时间戳 */
@@ -67,19 +80,31 @@ std::string LogEvent::toString()
     std::stringstream ss;
     ss << "[" << LogLevelToString(m_level) << "]\t"
         << "[" << time_str << "]\t"
-        << "["<< getPid() << ":" << getTid() << "]"
-        << "[" << std::string(__FILE__) << ":" << __LINE__ << "]\t";
+        << "["<< getPid() << ":" << getTid() << "]";
 
     return ss.str();
 }
 
-void Logger::pushLog(std::string &msg)
+void Logger::setLogLevel(LogLevel level)
 {
+    m_level = level;
+}
+
+LogLevel Logger::getLogLevel()
+{
+    return m_level;
+}
+
+void Logger::pushLog(const std::string &msg)
+{
+    ScopeMutex<Mutex> lock(m_mutex);
     m_buffer.push(msg);
 }
 
 void Logger::log()
 {
+    /* TODO 日志打印这里需要优化 */
+    ScopeMutex<Mutex> lock(m_mutex);
     while(!m_buffer.empty())
     {
         std::string msg = m_buffer.front();
@@ -89,7 +114,7 @@ void Logger::log()
     }
 }
 
-Logger *Logger::getGlobalLogger()
+Logger *Logger::GetInstance()
 {
     if(g_logger)
     {

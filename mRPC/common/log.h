@@ -6,6 +6,8 @@
 #include <queue>
 #include <memory>
 
+#include "mutex.h"
+
 namespace mrpc
 {
 /**
@@ -35,10 +37,14 @@ std::string formatString(const char* str, Args&&... args)
 enum LogLevel
 {
     kUnknown = 0,
-    kDebug   = 1,
-    kInfo    = 2,
-    kError   = 3
+    kInfo    = 1, 
+    kError   = 2,
+    kDebug   = 3,
+    kAny     = 4   /* 增加/修改最大枚举时这个kAny枚举值要一起修改 */   
 };
+
+std::string LogLevelToString(LogLevel level);
+LogLevel StringToLogLevel(const std::string& log_level);
 
 class LogEvent
 {
@@ -68,22 +74,58 @@ private:
 class Logger
 {
 public:
-    void pushLog(std::string& msg);
+    void setLogLevel(LogLevel level);
+    LogLevel getLogLevel();
+    void pushLog(const std::string& msg);
     void log();
 
 public:
-    static Logger* getGlobalLogger();   /* 设计模式:单例模式 */
+    static Logger* GetInstance();   /* 设计模式:单例模式 */
 
 private:
-    LogLevel                m_level;
+    LogLevel                m_level { LogLevel::kAny }; /* kAny时,所有日志都打印 */
     std::queue<std::string> m_buffer;
+    Mutex                   m_mutex;
 };
 
 /* logPrefix + logMsg*/
-#define DEBUGLOG(str, ...) \
-    std::string msg = (new mrpc::LogEvent(mrpc::LogLevel::kDebug))->toString() + mrpc::formatString(str, ##__VA_ARGS__);  \
-    mrpc::Logger::getGlobalLogger()->pushLog(msg);  \
-    mrpc::Logger::getGlobalLogger()->log();  \
+#define MRPC_INFO(str, ...) \
+    if(mrpc::Logger::GetInstance()->getLogLevel() && mrpc::Logger::GetInstance()->getLogLevel() >= mrpc::LogLevel::kInfo) \
+    { \
+        mrpc::Logger::GetInstance()->pushLog(mrpc::LogEvent(mrpc::LogLevel::kInfo).toString() \
+        + "[" + std::string(__FILE__) + std::to_string(__LINE__) + "]" \
+        + mrpc::formatString(str, ##__VA_ARGS__)); \
+        mrpc::Logger::GetInstance()->log(); \
+    } \
+        
+#define MRPC_ERROR(str, ...) \
+    if(mrpc::Logger::GetInstance()->getLogLevel() && mrpc::Logger::GetInstance()->getLogLevel() >= mrpc::LogLevel::kError) \
+    { \
+        mrpc::Logger::GetInstance()->pushLog(mrpc::LogEvent(mrpc::LogLevel::kError).toString() \
+        + "[" + std::string(__FILE__) + std::to_string(__LINE__) + "]" \
+        + mrpc::formatString(str, ##__VA_ARGS__)); \
+        mrpc::Logger::GetInstance()->log(); \
+    } \
+
+
+#define MRPC_DEBUG(str, ...) \
+    if(mrpc::Logger::GetInstance()->getLogLevel() && mrpc::Logger::GetInstance()->getLogLevel() >= mrpc::LogLevel::kDebug) \
+    { \
+        mrpc::Logger::GetInstance()->pushLog(mrpc::LogEvent(mrpc::LogLevel::kDebug).toString() \
+        + "[" + std::string(__FILE__) + std::to_string(__LINE__) + "]" \
+        + mrpc::formatString(str, ##__VA_ARGS__)); \
+        mrpc::Logger::GetInstance()->log(); \
+    } \
+
+/* 无视日志等级的输出 */
+#define MRPC_ANY(str, ...) \
+    if(mrpc::Logger::GetInstance()->getLogLevel() && mrpc::Logger::GetInstance()->getLogLevel() >= mrpc::LogLevel::kAny) \
+    { \
+        mrpc::Logger::GetInstance()->pushLog(mrpc::LogEvent(mrpc::LogLevel::kAny).toString() \
+        + "[" + std::string(__FILE__) + std::to_string(__LINE__) + "]" \
+        + mrpc::formatString(str, ##__VA_ARGS__)); \
+        mrpc::Logger::GetInstance()->log(); \
+    } \
 
 } // namespace mrpc 
 

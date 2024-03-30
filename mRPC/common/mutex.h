@@ -25,11 +25,11 @@ class Mutex
 public:
     Mutex()
     {
-        pthread_mutex_lock(&m_mutex);
+        pthread_mutex_init(&m_mutex, nullptr);
     }
     ~Mutex()
     {
-        pthread_mutex_unlock(&m_mutex);
+        pthread_mutex_destroy(&m_mutex);
     }
     void lock()
     {

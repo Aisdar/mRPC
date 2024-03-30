@@ -28,7 +28,7 @@ LIB_OUT := $(PATH_LIB)/libmrpc.a
 
 # test
 $(PATH_BIN)/test_log : $(LIB_OUT)
-	$(CXX) $(CXXFLAGS) $(PATH_TESTCASES)/test_log.cc -o $@ $(LIB_OUT) $(LIBS) -ldl -pthread
+	$(CXX) $(CXXFLAGS) $(PATH_TESTCASES)/test_log.cc -o $@ $(LIB_OUT) $(LIBS) -ldl -lpthread
 
 $(LIB_OUT) : $(COMM_OBJ)
 	cd $(PATH_OBJ) && ar rcv libmrpc.a *.o && mv libmrpc.a ../lib/
